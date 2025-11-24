@@ -1,117 +1,114 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Mini 3D Stable</title>
-<style>
-  body { margin:0; overflow:hidden; font-family: Arial; }
-  #scoreboard { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Outil d'information système (navigateur)</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#3b82f6;--muted:#9aa4b2}
+    body{font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071027 0%, #07121a 100%);color:#e6eef8;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:100%;max-width:920px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    h1{margin:0 0 12px;font-size:20px}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .item{background:var(--card);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+    .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .value{font-weight:600;font-size:15px;word-break:break-all}
+    .warn{color:#ffb86b}
+    .ok{color:#8ef57a}
+    button{margin-top:14px;padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:#081022;font-weight:700;cursor:pointer}
+    .note{margin-top:10px;color:var(--muted);font-size:13px}
+    pre{white-space:pre-wrap;word-break:break-word;margin:0;font-size:13px}
+  </style>
 </head>
 <body>
-<div id="scoreboard">Score: 0</div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.156.1/build/three.min.js"></script>
+  <div class="card">
+    <h1>Outil d'information système (navigateur)</h1>
+    <p class="lead">Ce qui est accessible depuis une page web : GPU (souvent), nombre de cœurs, userAgent. <strong>Ce qui n'est pas accessible :</strong> température réelle du matériel, noms des processus. 🚫</p>
 
-<script>
-// === Scène, caméra, rendu ===
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+    <div class="grid">
+      <div class="item">
+        <div class="label">GPU (WebGL renderer)</div>
+        <div id="gpu" class="value">Recherche...</div>
+      </div>
+      <div class="item">
+        <div class="label">Nombre de cœurs logiques (hardwareConcurrency)</div>
+        <div id="cores" class="value">Recherche...</div>
+      </div>
+      <div class="item">
+        <div class="label">UserAgent</div>
+        <div id="ua" class="value"></div>
+      </div>
+      <div class="item">
+        <div class="label">Température réelle du système</div>
+        <div id="temp" class="value warn">Je ne sais pas. (non accessible depuis le navigateur)</div>
+      </div>
+      <div class="item">
+        <div class="label">Nom des processus CPU</div>
+        <div id="proc" class="value warn">Je ne sais pas. (non accessible depuis le navigateur)</div>
+      </div>
+      <div class="item">
+        <div class="label">Informations additionnelles</div>
+        <div id="extra" class="value"></div>
+      </div>
+    </div>
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0,5,10);
+    <button id="refresh">Rafraîchir les infos</button>
+    <div class="note">Identify</div>
+  </div>
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-// Lumière
-const light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(5,10,5);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040));
-
-// Sol
-const sol = new THREE.Mesh(
-  new THREE.BoxGeometry(50,1,50),
-  new THREE.MeshPhongMaterial({color:0x654321})
-);
-sol.position.y=-0.5;
-scene.add(sol);
-
-// Joueur
-const joueur = new THREE.Mesh(
-  new THREE.BoxGeometry(1,2,1),
-  new THREE.MeshPhongMaterial({color:0x00ff00})
-);
-joueur.position.y=1;
-scene.add(joueur);
-
-// Arbres
-const arbres = [];
-const scoreElem = document.getElementById("scoreboard");
-let score = 0;
-
-for(let i=0;i<5;i++){
-  const arbre = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.5,0.5,3,8),
-    new THREE.MeshPhongMaterial({color:0x8B4513})
-  );
-  arbre.position.set(Math.random()*20-10,1.5,Math.random()*20-10);
-  scene.add(arbre);
-  arbres.push(arbre);
-}
-
-// Déplacement
-const vitesse = 0.2;
-const keys = { w:false, s:false, a:false, d:false };
-document.addEventListener('keydown',e=>{
-  if(e.key==='w') keys.w=true;
-  if(e.key==='s') keys.s=true;
-  if(e.key==='a') keys.a=true;
-  if(e.key==='d') keys.d=true;
-});
-document.addEventListener('keyup',e=>{
-  if(e.key==='w') keys.w=false;
-  if(e.key==='s') keys.s=false;
-  if(e.key==='a') keys.a=false;
-  if(e.key==='d') keys.d=false;
-});
-
-// Clic pour supprimer arbre
-document.addEventListener('mousedown', e=>{
-  if(e.button===0){
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2(0,0);
-    raycaster.setFromCamera(mouse,camera);
-    const intersects = raycaster.intersectObjects(arbres);
-    if(intersects.length>0){
-      const arbre = intersects[0].object;
-      scene.remove(arbre);
-      arbres.splice(arbres.indexOf(arbre),1);
-      score++;
-      scoreElem.innerText = "Score: "+score;
+  <script>
+    function getGPUInfo() {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return null;
+        const dbgRenderInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (dbgRenderInfo) {
+          const vendor = gl.getParameter(dbgRenderInfo.UNMASKED_VENDOR_WEBGL);
+          const renderer = gl.getParameter(dbgRenderInfo.UNMASKED_RENDERER_WEBGL);
+          return { vendor, renderer };
+        } else {
+          // fallback: limited info
+          const renderer = gl.getParameter(gl.RENDERER);
+          const vendor = gl.getParameter(gl.VENDOR);
+          return { vendor, renderer };
+        }
+      } catch (e) {
+        return null;
+      }
     }
-  }
-});
 
-// Boucle
-function animate(){
-  requestAnimationFrame(animate);
+    function updateAll() {
+      const gpu = getGPUInfo();
+      const gpuEl = document.getElementById('gpu');
+      if (gpu && (gpu.renderer || gpu.vendor)) {
+        gpuEl.innerHTML = `<div style="font-size:13px">${gpu.renderer || 'Inconnu'}</div><div style="color:var(--muted);font-size:12px">${gpu.vendor||''}</div>`;
+        gpuEl.className = 'value ok';
+      } else {
+        gpuEl.textContent = 'Non disponible (bloqué par le navigateur ou pas pris en charge)';
+        gpuEl.className = 'value warn';
+      }
 
-  // Mouvement joueur
-  if(keys.w) joueur.position.z -= vitesse;
-  if(keys.s) joueur.position.z += vitesse;
-  if(keys.a) joueur.position.x -= vitesse;
-  if(keys.d) joueur.position.x += vitesse;
+      const cores = navigator.hardwareConcurrency || 'Inconnu';
+      document.getElementById('cores').textContent = cores;
 
-  // Caméra suit joueur
-  camera.position.set(joueur.position.x, joueur.position.y+5, joueur.position.z+10);
-  camera.lookAt(joueur.position);
+      document.getElementById('ua').textContent = navigator.userAgent;
 
-  renderer.render(scene,camera);
-}
+      // Extra: approximate CPU benchmark (simple)
+      const extraEl = document.getElementById('extra');
+      extraEl.innerHTML = 'Mesure rapide de performance (approx.) — Exécution d\'une petite boucle...';
+      // tiny benchmark to infer perf (non fiable)
+      const t0 = performance.now();
+      let s = 0;
+      for (let i=0;i<20_000_00;i++){ s += i % 7; }
+      const t1 = performance.now();
+      const elapsed = (t1 - t0).toFixed(1);
+      extraEl.innerHTML = `Boucle ~20M itérations: ${elapsed} ms (valeur indicative, non fiable).`;
+    }
 
-animate();
-</script>
+    document.getElementById('refresh').addEventListener('click', updateAll);
+    updateAll();
+  </script>
 </body>
 </html>
